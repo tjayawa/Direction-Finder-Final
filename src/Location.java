@@ -33,22 +33,28 @@ public class Location {
 
     public void setName(String name) {this.name = name;}
 
-    public static Location parseLocation(String location) throws IllegalArgumentException {
-        if (location.matches("\\([+-]?(\\d+\\.\\d+), [+-]?(\\d+\\.\\d+)\\)")) {
-            try {
-                double latitude = Double.parseDouble(location.substring(location.indexOf("(") + 1, location.indexOf(",")));
-                double longitude = Double.parseDouble(location.substring(location.indexOf(" ") + 1, location.indexOf(")")));
-                if ((latitude >= -90.0 && latitude <= 90.0) && (longitude >= -180.0 && longitude <= 180.0)) {
-                    return new Location(latitude, longitude);
-                } else {
-                    throw new IllegalArgumentException();
-                }
-            } catch (NumberFormatException e) {
-                throw new IllegalArgumentException();
+    public static boolean isLatitude(String input) {
+        try {
+            double l = Double.parseDouble(input.trim());
+            if (l >= -90.0 && l <= 90.0) {
+                return true;
             }
-        } else {
-            throw new IllegalArgumentException();
+        } catch (NumberFormatException e) {
+
         }
+        return false;
+    }
+
+    public static boolean isLongitude(String input) {
+        try {
+            double l = Double.parseDouble(input.trim());
+            if (l >= -180.0 && l <= 180.0) {
+                return true;
+            }
+        } catch (NumberFormatException e) {
+
+        }
+        return false;
     }
 
     @Override
