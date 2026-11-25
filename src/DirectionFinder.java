@@ -1,5 +1,5 @@
 import java.lang.IO;
-public class Main {
+public class DirectionFinder {
 
     public static Location inputLocation(String type) {
         String name = IO.readln(String.format("Enter the %s location's name (Enter an empty string if no name)\n", type));
