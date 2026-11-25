@@ -24,7 +24,7 @@ public class Bearing {
         double bearing = calculate(start, end);
         int index = (int) Math.round((bearing / 45.0)) % 8;
         if (start.getName() != null && end.getName() != null) {
-            return String.format("Direction from %s to %s: %.1f %s",
+            return String.format("%s to %s\n%.1f %s",
                     start.getName(), end.getName(), bearing, directions[index]);
         }
         else {
