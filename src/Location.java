@@ -5,16 +5,6 @@ public class Location {
     private double longitude;
     private String name;
 
-    public Location(String name, double latitude, double longitude) throws IllegalArgumentException {
-        if ((latitude >= -90.0 && latitude <= 90.0) && (longitude >= -180.0 && longitude <= 180.0)) {
-            this.latitude = latitude;
-            this.longitude = longitude;
-            this.name = name;
-        } else {
-            throw new IllegalArgumentException();
-        }
-    }
-
     public Location(double latitude, double longitude) throws IllegalArgumentException {
         if ((latitude >= -90.0 && latitude <= 90.0) && (longitude >= -180.0 && longitude <= 180.0)) {
             this.latitude = latitude;
