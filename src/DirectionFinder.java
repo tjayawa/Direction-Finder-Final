@@ -1,6 +1,8 @@
 import java.awt.*;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import javax.swing.*;
 import javax.swing.text.*;
 import com.formdev.flatlaf.FlatLightLaf;
@@ -12,20 +14,106 @@ public class DirectionFinder {
         public JTextField name;
         public JTextField latitude;
         public JTextField longitude;
+        private SDialog search = null;
 
         public LTPanel (String labelName) {
             setLayout(new GridLayout(2, 2, 10, 10));
+            JPanel extra = new JPanel(new BorderLayout());
             JLabel panelName = new JLabel(labelName + " Location", SwingConstants.CENTER);
+            ImageIcon ico = new ImageIcon("res/Pin.png");
+            JButton fetchLocation = new JButton(ico);
+            fetchLocation.addActionListener(e -> {
+                if (search == null) {
+                    search = new SDialog();
+                }
+            });
+            extra.add(panelName, BorderLayout.LINE_END);
+            extra.add(fetchLocation, BorderLayout.LINE_START);
             name = new JTextField(10);
             name.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Location Name");
             latitude = new JTextField(10);
             latitude.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Latitude");
             longitude = new JTextField(10);
             longitude.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Longitude");
-            add(panelName);
+            add(extra);
             add(name);
             add(latitude);
             add(longitude);
+        }
+
+        private class ULButton extends JButton {
+            public ULButton() {
+                ImageIcon ico = new ImageIcon("res/YourLocation.png");
+                super(ico);
+                setToolTipText("Your Location");
+                addActionListener(e -> {
+                    name.setText("Hi User");
+                });
+            }
+        }
+
+        private class SDialog extends JDialog {
+            public SDialog() {
+                super();
+                setTitle("Search");
+                JPanel top = new JPanel(new BorderLayout());
+                JPanel buttons = new JPanel(new GridLayout(1, 2));
+                ULButton ulButton = new ULButton();
+                ulButton.addActionListener(e -> dispose());
+                ImageIcon ico = new ImageIcon("res/Search.png");
+                JButton sButton = new JButton(ico);
+                sButton.setToolTipText("Search for Location");
+                JTextField sBar = new JTextField();
+                buttons.add(ulButton);
+                buttons.add(sButton);
+                top.add(buttons, BorderLayout.LINE_END);
+                top.add(sBar, BorderLayout.CENTER);
+                add(top, BorderLayout.NORTH);
+                JPanel bottom = new JPanel(new BorderLayout());
+                JLabel error = new JLabel();
+                error.setForeground(Color.red);
+                JButton locate = new JButton("Locate");
+                locate.setFont(locate.getFont().deriveFont(25.0f));
+                bottom.add(locate, BorderLayout.LINE_END);
+                bottom.add(error, BorderLayout.CENTER);
+                add(bottom, BorderLayout.SOUTH);
+                DefaultListModel<String> locationsModel = new DefaultListModel<>();
+                JList<String> locationsList = new JList<>(locationsModel);
+                JScrollPane scrollPane = new JScrollPane(locationsList);
+                add(scrollPane, BorderLayout.CENTER);
+                locate.addActionListener(e -> {
+                    if (!locationsList.isSelectionEmpty()) {
+                        name.setText(locationsList.getSelectedValue());
+                        dispose();
+                    } else {
+                        error.setText("Add and Choose items in List");
+                    }
+                });
+                sButton.addActionListener(e -> {
+                    if (!sBar.getText().matches("\\s*")) {
+                        locationsModel.addElement(sBar.getText());
+                        sBar.setText("");
+                    } else {
+                        error.setText("Put text in search Bar");
+                    }
+                });
+                setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+                addWindowListener(new WindowAdapter() {
+                    @Override
+                    public void windowClosing(WindowEvent e) {
+                        dispose();
+                    }
+                });
+                setSize(400, 400);
+                setLocation(LTPanel.this.getX() + 400, LTPanel.this.getY() + 400);
+                setVisible(true);
+            }
+
+            @Override
+            public void dispose() {
+                search = null;
+                super.dispose();
+            }
         }
 
         public void reset() {
@@ -158,23 +246,29 @@ public class DirectionFinder {
                 scrollPane.setVisible(false);
                 errorModel.clear();
                 if (sIsLatitude && sIsLongitude && eIsLatitude && eIsLongitude) {
-                    Location start = Location.parseLocation(String.format("(%s, %s)",
-                            startInput.latitude.getText(), startInput.longitude.getText()));
-                    Location end = Location.parseLocation(String.format("(%s, %s)",
-                            endInput.latitude.getText(), endInput.longitude.getText()));
-                    if (sNameNotBlank && eNameNotBlank) {
-                        start.setName(startInput.name.getText().trim());
-                        end.setName(endInput.name.getText().trim());
-                    } else {
-                        if (!sNameNotBlank) {
-                            errorModel.addElement("Warning: Add Start Location Name");
+                    try {
+                        Location start = Location.parseLocation(String.format("(%s, %s)",
+                                startInput.latitude.getText(), startInput.longitude.getText()));
+                        Location end = Location.parseLocation(String.format("(%s, %s)",
+                                endInput.latitude.getText(), endInput.longitude.getText()));
+                        if (sNameNotBlank && eNameNotBlank) {
+                            start.setName(startInput.name.getText().trim());
+                            end.setName(endInput.name.getText().trim());
+                        } else {
+                            if (!sNameNotBlank) {
+                                errorModel.addElement("Warning: Add Start Location Name");
+                            }
+                            if (!eNameNotBlank) {
+                                errorModel.addElement("Warning: Add End Location Name");
+                            }
+                            scrollPane.setVisible(true);
                         }
-                        if (!eNameNotBlank) {
-                            errorModel.addElement("Warning: Add End Location Name");
-                        }
+                        bearingText.setText(Bearing.format(start, end));
+                    } catch (IllegalArgumentException x) {
+                        errorModel.addElement("Error: Make sure all Latitude and Longitude " +
+                                "inputs have a decimal point");
                         scrollPane.setVisible(true);
                     }
-                    bearingText.setText(Bearing.format(start, end));
                 } else {
                     if (!sIsLatitude) {
                         errorModel.addElement("Error: Enter Latitude for Start Location");
