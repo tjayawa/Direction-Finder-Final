@@ -1,12 +1,14 @@
 import java.awt.*;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import javax.swing.*;
 import javax.swing.text.*;
 import com.formdev.flatlaf.FlatLightLaf;
 import com.formdev.flatlaf.FlatClientProperties;
+import java.util.Random;
 
 public class DirectionFinder {
 
@@ -15,6 +17,7 @@ public class DirectionFinder {
         public JTextField latitude;
         public JTextField longitude;
         private SDialog search = null;
+        private Random rand = new Random();
 
         public LTPanel (String labelName) {
             setLayout(new GridLayout(2, 2, 10, 10));
@@ -22,8 +25,10 @@ public class DirectionFinder {
             JLabel panelName = new JLabel(labelName + " Location", SwingConstants.CENTER);
             ImageIcon ico = new ImageIcon("res/Pin.png");
             JButton fetchLocation = new JButton(ico);
+            fetchLocation.setToolTipText("Fetch Location");
             fetchLocation.addActionListener(e -> {
-                if (search == null) {
+                boolean online = isOnline();
+                if (search == null && online) {
                     search = new SDialog();
                 }
             });
@@ -41,17 +46,6 @@ public class DirectionFinder {
             add(longitude);
         }
 
-        private class ULButton extends JButton {
-            public ULButton() {
-                ImageIcon ico = new ImageIcon("res/YourLocation.png");
-                super(ico);
-                setToolTipText("Your Location");
-                addActionListener(e -> {
-                    name.setText("Hi User");
-                });
-            }
-        }
-
         private class SDialog extends JDialog {
             public SDialog() {
                 super();
@@ -59,7 +53,6 @@ public class DirectionFinder {
                 JPanel top = new JPanel(new BorderLayout());
                 JPanel buttons = new JPanel(new GridLayout(1, 2));
                 ULButton ulButton = new ULButton();
-                ulButton.addActionListener(e -> dispose());
                 ImageIcon ico = new ImageIcon("res/Search.png");
                 JButton sButton = new JButton(ico);
                 sButton.setToolTipText("Search for Location");
@@ -77,13 +70,33 @@ public class DirectionFinder {
                 bottom.add(locate, BorderLayout.LINE_END);
                 bottom.add(error, BorderLayout.CENTER);
                 add(bottom, BorderLayout.SOUTH);
-                DefaultListModel<String> locationsModel = new DefaultListModel<>();
-                JList<String> locationsList = new JList<>(locationsModel);
+                DefaultListModel<Location> locationsModel = new DefaultListModel<>();
+                JList<Location> locationsList = new JList<>(locationsModel);
+                locationsList.setCellRenderer((jList, location, index, isSelected, cellHasFocus) -> {
+                    JPanel panel = new JPanel(new GridLayout(2, 1));
+                    JLabel name = new JLabel(location.getName());
+                    name.setFont(name.getFont().deriveFont(15.0f));
+                    JLabel info = new JLabel(location.toString());
+                    info.setFont(info.getFont().deriveFont(10.0f));
+                    info.setForeground(Color.lightGray);
+
+                    panel.add(name);
+                    panel.add(info);
+
+                    panel.setBackground(isSelected ? jList.getSelectionBackground() : jList.getBackground());
+                    name.setBackground(isSelected ? jList.getSelectionBackground() : jList.getBackground());
+                    info.setBackground(isSelected ? jList.getSelectionBackground() : jList.getBackground());
+
+                    return panel;
+                });
                 JScrollPane scrollPane = new JScrollPane(locationsList);
                 add(scrollPane, BorderLayout.CENTER);
                 locate.addActionListener(e -> {
                     if (!locationsList.isSelectionEmpty()) {
-                        name.setText(locationsList.getSelectedValue());
+                        Location location = locationsList.getSelectedValue();
+                        name.setText(location.getName());
+                        latitude.setText(location.getLatitudeString());
+                        longitude.setText(location.getLongitudeString());
                         dispose();
                     } else {
                         error.setText("Add and Choose items in List");
@@ -91,7 +104,13 @@ public class DirectionFinder {
                 });
                 sButton.addActionListener(e -> {
                     if (!sBar.getText().matches("\\s*")) {
-                        locationsModel.addElement(sBar.getText());
+                        double la = 90 * rand.nextDouble();
+                        la = rand.nextBoolean() ? la : la * -1;
+                        double lo = 180 * rand.nextDouble();
+                        la = rand.nextBoolean() ? la : la * -1;
+                        Location location = new Location(la, lo);
+                        location.setName(sBar.getText());
+                        locationsModel.addElement(location);
                         sBar.setText("");
                     } else {
                         error.setText("Put text in search Bar");
@@ -105,8 +124,20 @@ public class DirectionFinder {
                     }
                 });
                 setSize(400, 400);
-                setLocation(LTPanel.this.getX() + 400, LTPanel.this.getY() + 400);
+                setLocation(LTPanel.this.getX() + 400, LTPanel.this.getY() + 410);
                 setVisible(true);
+            }
+
+            private class ULButton extends JButton {
+                public ULButton() {
+                    ImageIcon ico = new ImageIcon("res/YourLocation.png");
+                    super(ico);
+                    setToolTipText("Your Location");
+                    addActionListener(e -> {
+                        name.setText("Hi User");
+                        dispose();
+                    });
+                }
             }
 
             @Override
@@ -200,9 +231,10 @@ public class DirectionFinder {
             tabs.addTab("Text", textPanel);
             tabs.addTab("Map", mapPanel);
 
-            JPanel rightPanel = new JPanel(new GridBagLayout());
+            JPanel rightPanel = new JPanel(new BorderLayout());
 
             JTextPane bearingText = new JTextPane();
+            bearingText.setFont(bearingText.getFont().deriveFont(25.0f));
             bearingText.setText("Enter Coordinates for Bearing");
             bearingText.setEditable(false);
             bearingText.setFocusable(false);
@@ -214,26 +246,30 @@ public class DirectionFinder {
             StyleConstants.setAlignment(center, StyleConstants.ALIGN_CENTER);
             doc.setParagraphAttributes(0, doc.getLength(), center, false);
 
-            rightPanel.add(bearingText, new GridBagConstraints());
+            JPanel wrapper = new JPanel(new BorderLayout());
+            wrapper.add(bearingText, BorderLayout.CENTER);
 
-            rightPanel.addComponentListener(new ComponentAdapter() {
-                @Override
-                public void componentResized(ComponentEvent e) {
-                    super.componentResized(e);
-                    int newSize = Math.max(13, rightPanel.getHeight() / 13);
-                    bearingText.setFont(bearingText.getFont().deriveFont((float) newSize));
-                }
-            });
+            JLabel bearingResult = new JLabel("", SwingConstants.CENTER);
+            bearingResult.setFont(bearingResult.getFont().deriveFont(25.0f));
+
+            JCompass compass = new JCompass();
+            compass.setVisible(false);
+
+            rightPanel.add(wrapper, BorderLayout.NORTH);
+            rightPanel.add(bearingResult, BorderLayout.SOUTH);
+            rightPanel.add(compass, BorderLayout.CENTER);
 
             containerPanel.add(leftPanel);
             containerPanel.add(rightPanel);
 
             reset.addActionListener(e -> {
                 bearingText.setText("Enter Coordinates for Bearing");
+                bearingResult.setText("");
                 startInput.reset();
                 endInput.reset();
                 scrollPane.setVisible(false);
                 errorModel.clear();
+                compass.setVisible(false);
             });
 
             calculate.addActionListener(e -> {
@@ -246,53 +282,59 @@ public class DirectionFinder {
                 scrollPane.setVisible(false);
                 errorModel.clear();
                 if (sIsLatitude && sIsLongitude && eIsLatitude && eIsLongitude) {
-                    try {
-                        Location start = Location.parseLocation(String.format("(%s, %s)",
-                                startInput.latitude.getText(), startInput.longitude.getText()));
-                        Location end = Location.parseLocation(String.format("(%s, %s)",
-                                endInput.latitude.getText(), endInput.longitude.getText()));
-                        if (sNameNotBlank && eNameNotBlank) {
-                            start.setName(startInput.name.getText().trim());
-                            end.setName(endInput.name.getText().trim());
-                        } else {
-                            if (!sNameNotBlank) {
-                                errorModel.addElement("Warning: Add Start Location Name");
-                            }
-                            if (!eNameNotBlank) {
-                                errorModel.addElement("Warning: Add End Location Name");
-                            }
-                            scrollPane.setVisible(true);
-                        }
-                        bearingText.setText(Bearing.format(start, end));
-                    } catch (IllegalArgumentException x) {
-                        errorModel.addElement("Error: Make sure all Latitude and Longitude " +
-                                "inputs have a decimal point");
+                    Location start = Location.parseLocation(
+                            startInput.latitude.getText(), startInput.longitude.getText());
+                    Location end = Location.parseLocation(
+                            endInput.latitude.getText(), endInput.longitude.getText());
+                    if (sNameNotBlank && eNameNotBlank) {
+                        start.setName(startInput.name.getText().trim());
+                        end.setName(endInput.name.getText().trim());
+                    } else {
                         scrollPane.setVisible(true);
                     }
+                    double bearing = Bearing.calculate(start, end);
+                    bearingText.setText((sNameNotBlank && eNameNotBlank) ? String.format("%s to %s",
+                            start.getName(), end.getName()) : "");
+                    bearingResult.setText(Bearing.format(bearing));
+                    compass.setBearing(bearing);
+                    compass.repaint();
+                    compass.setVisible(true);
                 } else {
-                    if (!sIsLatitude) {
-                        errorModel.addElement("Error: Enter Latitude for Start Location");
-                    }
-                    if (!sIsLongitude) {
-                        errorModel.addElement("Error: Enter Longitude for Start Location");
-                    }
-                    if (!eIsLatitude) {
-                        errorModel.addElement("Error: Enter Latitude for End Location");
-                    }
-                    if (!eIsLongitude) {
-                        errorModel.addElement("Error: Enter Longitude for End Location");
-                    }
+                    scrollPane.setVisible(true);
+                }
+                if (!sIsLatitude) {
+                    errorModel.addElement("Error: Enter Latitude for Start Location");
+                }
+                if (!sIsLongitude) {
+                    errorModel.addElement("Error: Enter Longitude for Start Location");
+                }
+                if (!eIsLatitude) {
+                    errorModel.addElement("Error: Enter Latitude for End Location");
+                }
+                if (!eIsLongitude) {
+                    errorModel.addElement("Error: Enter Longitude for End Location");
+                }
+                if (!sNameNotBlank || !eNameNotBlank) {
+                    scrollPane.setVisible(true);
                     if (!sNameNotBlank) {
                         errorModel.addElement("Warning: Add Start Location Name");
                     }
                     if (!eNameNotBlank) {
                         errorModel.addElement("Warning: Add End Location Name");
                     }
-                    scrollPane.setVisible(true);
                 }
             });
 
             frame.add(containerPanel);
         });
+    }
+
+    public static boolean isOnline() {
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress("8.8.8.8", 53), 1500);
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
     }
 }
