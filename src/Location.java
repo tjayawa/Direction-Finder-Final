@@ -4,22 +4,14 @@ public class Location {
     private double latitude;
     private double longitude;
     private String name;
-
-    public Location(String name, double latitude, double longitude) throws IllegalArgumentException {
-        if ((latitude >= -90.0 && latitude <= 90.0) && (longitude >= -180.0 && longitude <= 180.0)) {
-            this.latitude = latitude;
-            this.longitude = longitude;
-            this.name = name;
-        } else {
-            throw new IllegalArgumentException();
-        }
-    }
+    private String address;
 
     public Location(double latitude, double longitude) throws IllegalArgumentException {
         if ((latitude >= -90.0 && latitude <= 90.0) && (longitude >= -180.0 && longitude <= 180.0)) {
             this.latitude = latitude;
             this.longitude = longitude;
             this.name = null;
+            this.address = null;
         } else {
             throw new IllegalArgumentException();
         }
@@ -29,9 +21,41 @@ public class Location {
 
     public double getLongitude() {return this.longitude;}
 
+    public String getLatitudeString() {return Double.toString(this.latitude);}
+
+    public String getLongitudeString() {return Double.toString(this.longitude);}
+
     public String getName() {return this.name;}
 
     public void setName(String name) {this.name = name;}
+
+    public String getAddress() {return this.address;}
+
+    public void setAddress(String address) {this.address = address;}
+
+    public static boolean isLatitude(String input) {
+        try {
+            double l = Double.parseDouble(input.trim());
+            if (l >= -90.0 && l <= 90.0) {
+                return true;
+            }
+        } catch (NumberFormatException e) {
+
+        }
+        return false;
+    }
+
+    public static boolean isLongitude(String input) {
+        try {
+            double l = Double.parseDouble(input.trim());
+            if (l >= -180.0 && l <= 180.0) {
+                return true;
+            }
+        } catch (NumberFormatException e) {
+
+        }
+        return false;
+    }
 
     public static Location parseLocation(String location) throws IllegalArgumentException {
         if (location.matches("\\([+-]?(\\d+\\.\\d+), [+-]?(\\d+\\.\\d+)\\)")) {
@@ -47,6 +71,20 @@ public class Location {
                 throw new IllegalArgumentException();
             }
         } else {
+            throw new IllegalArgumentException();
+        }
+    }
+
+    public static Location parseLocation(String la, String lo) throws IllegalArgumentException {
+        try {
+            double latitude = Double.parseDouble(la.trim());
+            double longitude = Double.parseDouble(lo.trim());
+            if ((latitude >= -90.0 && latitude <= 90.0) && (longitude >= -180.0 && longitude <= 180.0)) {
+                return new Location(latitude, longitude);
+            } else {
+                throw new IllegalArgumentException();
+            }
+        } catch (NumberFormatException e) {
             throw new IllegalArgumentException();
         }
     }
